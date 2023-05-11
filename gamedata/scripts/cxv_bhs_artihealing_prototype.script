@@ -1,0 +1,195 @@
+-- local timeregen = zzz_player_injuries.timeregen
+-- local regen = zzz_player_injuries.regen
+
+if perk_based_artefacts then end
+
+-- This is artifacts speeding up body part hp healing. The higher the value the faster the healing. Stackable.
+local modifiedregen = regen
+artihealhelp = {}
+local math_floor = math.floor
+local shouldUpdate = false
+local sin_mult
+local has_checked = false
+local af_lucifer_check = perk_based_artefacts.artefact_props.af_lucifer
+
+-- Values are half of their Health Regen stated on their tooltip for balance for now
+artihealhelp.af_oasis_heart				=1.5
+artihealhelp.af_oasis_heart_af_iam		=1.5
+artihealhelp.af_oasis_heart_af_aac		=1.5
+artihealhelp.af_oasis_heart_af_aam		=1.5
+artihealhelp.af_fuzz_kolobok			=1.5
+artihealhelp.af_fuzz_kolobok_af_iam		=1.5
+artihealhelp.af_fuzz_kolobok_af_aac		=1.5
+artihealhelp.af_fuzz_kolobok_af_aam		=1.5
+artihealhelp.af_glass					=3
+artihealhelp.af_glass_af_iam			=3
+artihealhelp.af_glass_af_aac			=3
+artihealhelp.af_glass_af_aam			=3
+artihealhelp.af_soul					=1
+artihealhelp.af_soul_af_iam				=1
+artihealhelp.af_soul_af_aac				=1
+artihealhelp.af_soul_af_aam				=1
+artihealhelp.af_ah_r1					=1
+artihealhelp.af_ah_r2					=1
+artihealhelp.af_ah_r3					=1
+artihealhelp.af_ah_r4					=1
+artihealhelp.af_ah_r5					=1
+
+artihealhelp.af_signet					=0
+artihealhelp.af_ear						=0
+artihealhelp.af_chelust					=0.25
+artihealhelp.af_sun						=0
+artihealhelp.af_lucifer					=1
+
+local indoor_levels = {
+	jupiter_underground 	= true,
+	l03u_agr_underground 	= true,
+	l04u_labx18 			= true,
+	l08u_brainlab 			= true,
+	l10u_bunker 			= true,
+	l12u_control_monolith 	= true,
+	l12u_sarcofag 			= true,
+	l13u_warlab 			= true,
+	labx8				 	= true
+}
+
+local get_weather_manager = level_weathers.get_weather_manager
+local function get_current_weather()
+	return get_weather_manager():get_curr_weather()
+end
+
+function check_chain_status()
+	sin_mult = 1
+	if db.actor:character_community() == actor_greh then
+		artihealhelp.sin_mult = 4
+	end
+	artihealhelp.af_chelust = artihealhelp.af_chelust * sin_mult
+end
+
+local function SaveNewLimbHealth()
+	utils_obj.save_var(db.actor,"health.head",zzz_player_injuries.health.head)
+	utils_obj.save_var(db.actor,"health.torso",zzz_player_injuries.health.torso)
+	utils_obj.save_var(db.actor,"health.rightarm",zzz_player_injuries.health.rightarm)
+	utils_obj.save_var(db.actor,"health.leftarm",zzz_player_injuries.health.leftarm)
+	utils_obj.save_var(db.actor,"health.rightleg",zzz_player_injuries.health.rightleg)
+	utils_obj.save_var(db.actor,"health.leftleg",zzz_player_injuries.health.leftleg)
+end
+
+local time_g = 0
+local timer_regen = time_global()
+local arti_status_check_timer = 0
+local arti_status_check_interval = 5000	-- update every 5000ms/5sec
+local healing_check_timer = 0
+local healing_check_interval = 100		-- check healing every 100ms/0.1sec
+
+function actor_on_update()
+	time_g = time_global()
+	if time_g >= arti_status_check_timer then 
+		arti_status_check_timer = time_g + arti_status_check_interval
+	
+	-- Signet Checking
+		local get_nearby_campfire = bind_campfire.get_nearby_campfire
+		local nearby_camp = get_nearby_campfire(5, true)	
+	
+		if nearby_camp and nearby_camp:is_on() and artihealhelp.af_signet == 0.8 then
+			-- do nothing
+		elseif nearby_camp and nearby_camp:is_on() and artihealhelp.af_signet == 0 then
+			artihealhelp.af_signet = 0.8
+			shouldUpdate = true
+		elseif artihealhelp.af_signet == 0.8 then
+			artihealhelp.af_signet = 0
+			shouldUpdate = true
+		end
+
+	-- Sun Checking
+		local actor_level = level.name()
+		local outside = (not indoor_levels[actor_level])
+		if outside then
+			local hours = level.get_time_hours()
+			local daytime = (hours <= 21) and (hours >= 5)
+			local clearWeather = (get_current_weather() == "clear") or 0
+			if daytime and clearWeather and artihealhelp.af_sun == 0.58 then
+				-- do nothing
+			elseif daytime and clearWeather and artihealhelp.af_sun == 0 then
+				artihealhelp.af_sun	= 0.58
+				shouldUpdate = true
+			elseif artihealhelp.af_sun == 0.58 then
+				artihealhelp.af_sun	= 0
+				shouldUpdate = true
+			end
+		end
+
+		if not shouldUpdate then return end
+
+		if shouldUpdate then 
+			artihealing_calculations()
+			shouldUpdate = false
+		end
+	end
+	if time_g >= healing_check_timer then 
+		healing_check_timer = time_g + healing_check_interval
+		if modifiedregen > 0 then
+			if time_g-timer_regen>modifiedregen then
+				if zzz_player_injuries.health.head~=zzz_player_injuries.maxhp.head 				then zzz_player_injuries.health.head=zzz_player_injuries.health.head+1 end
+				if zzz_player_injuries.health.torso~=zzz_player_injuries.maxhp.torso 			then zzz_player_injuries.health.torso=zzz_player_injuries.health.torso+1 end
+				if zzz_player_injuries.health.rightarm~=zzz_player_injuries.maxhp.rightarm 		then zzz_player_injuries.health.rightarm=zzz_player_injuries.health.rightarm+1 end
+				if zzz_player_injuries.health.leftarm~=zzz_player_injuries.maxhp.leftarm 		then zzz_player_injuries.health.leftarm=zzz_player_injuries.health.leftarm+1 end
+				if zzz_player_injuries.health.rightleg~=zzz_player_injuries.maxhp.rightleg		then zzz_player_injuries.health.rightleg=zzz_player_injuries.health.rightleg+1 end
+				if zzz_player_injuries.health.leftleg~=zzz_player_injuries.maxhp.leftleg 		then zzz_player_injuries.health.leftleg=zzz_player_injuries.health.leftleg+1 end
+				SaveNewLimbHealth()
+				timer_regen=time_global()
+			end
+		end
+	end
+end
+
+
+function artihealing_calculations()
+	
+	shouldUpdate = true
+	
+	local val = 0
+	db.actor:iterate_belt(
+		function (owner, obj)
+            local slotitemname = obj:section()
+			if artihealhelp[slotitemname] then
+			
+			-- Heart Checking
+				if slotitemname == af_ear then
+					local actor_health = round_100(actor.health)
+					local healthThreshold = perk_based_artefacts.healthThreshold
+					if actor_health < health_threshold then
+						artihealhelp.af_ear = 0.8
+					else
+						artihealhelp.af_ear = 0
+					end
+				end
+
+			-- Lucifer Equip Checking
+				if slotitemname == af_lucifer and not has_checked then
+					artihealhelp.af_lucifer = 3
+					has_checked = true
+				end	
+
+				slotCondition = obj:condition()
+                val = val + (artihealhelp[slotitemname] * slotCondition)
+			end
+		end
+	)
+
+	-- if player has Lucifer but not equipped...
+	if not has_checked and af_lucifer_check:check_lucifer() then
+		artihealhelp.af_lucifer = 1
+		val = val + (artihealhelp.af_lucifer * af_lucifer_check.condition)
+	end
+	
+	modifiedregen = math.floor(75000 / val)
+	printf('Limb regeneration: %s', modifiedregen)
+end
+
+function on_game_start()
+	RegisterScriptCallback("actor_on_first_update", check_chain_status)
+	RegisterScriptCallback("actor_on_first_update", artihealing_calculations)	-- TEST
+	RegisterScriptCallback("actor_on_update", actor_on_update)
+	RegisterScriptCallback("actor_item_to_belt", artihealing_calculations)
+end
