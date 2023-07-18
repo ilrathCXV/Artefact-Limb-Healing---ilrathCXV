@@ -2,9 +2,12 @@
 -- local regen = zzz_player_injuries.regen
 
 if perk_based_artefacts then end
+if zzz_player_injuries then end
+if zzzzzz_player_injuries_mp_new_attachments then end
+
 
 -- This is artifacts speeding up body part hp healing. The higher the value the faster the healing. Stackable.
-local modifiedregen = regen
+local modifiedregen = 0
 artihealhelp = {}
 local math_floor = math.floor
 local shouldUpdate = false
@@ -40,6 +43,8 @@ artihealhelp.af_ear						=0
 artihealhelp.af_chelust					=0.25
 artihealhelp.af_sun						=0
 artihealhelp.af_lucifer					=1
+
+artihealhelp.hide_bloodsucker			=1
 
 local indoor_levels = {
 	jupiter_underground 	= true,
@@ -79,8 +84,6 @@ local time_g = 0
 local timer_regen = time_global()
 local arti_status_check_timer = 0
 local arti_status_check_interval = 5000	-- update every 5000ms/5sec
-local healing_check_timer = 0
-local healing_check_interval = 100		-- check healing every 100ms/0.1sec
 
 function actor_on_update()
 	time_g = time_global()
@@ -126,19 +129,17 @@ function actor_on_update()
 			shouldUpdate = false
 		end
 	end
-	if time_g >= healing_check_timer then 
-		healing_check_timer = time_g + healing_check_interval
-		if modifiedregen > 0 then
-			if time_g-timer_regen>modifiedregen then
-				if zzz_player_injuries.health.head~=zzz_player_injuries.maxhp.head 				then zzz_player_injuries.health.head=zzz_player_injuries.health.head+1 end
-				if zzz_player_injuries.health.torso~=zzz_player_injuries.maxhp.torso 			then zzz_player_injuries.health.torso=zzz_player_injuries.health.torso+1 end
-				if zzz_player_injuries.health.rightarm~=zzz_player_injuries.maxhp.rightarm 		then zzz_player_injuries.health.rightarm=zzz_player_injuries.health.rightarm+1 end
-				if zzz_player_injuries.health.leftarm~=zzz_player_injuries.maxhp.leftarm 		then zzz_player_injuries.health.leftarm=zzz_player_injuries.health.leftarm+1 end
-				if zzz_player_injuries.health.rightleg~=zzz_player_injuries.maxhp.rightleg		then zzz_player_injuries.health.rightleg=zzz_player_injuries.health.rightleg+1 end
-				if zzz_player_injuries.health.leftleg~=zzz_player_injuries.maxhp.leftleg 		then zzz_player_injuries.health.leftleg=zzz_player_injuries.health.leftleg+1 end
-				SaveNewLimbHealth()
-				timer_regen=time_global()
-			end
+
+	if (modifiedregen > 0) and (time_g-timer_regen>modifiedregen) then
+		if time_g-timer_regen>modifiedregen then
+			if zzz_player_injuries.health.head~=zzz_player_injuries.maxhp.head 				then zzz_player_injuries.health.head=zzz_player_injuries.health.head+1 end
+			if zzz_player_injuries.health.torso~=zzz_player_injuries.maxhp.torso 			then zzz_player_injuries.health.torso=zzz_player_injuries.health.torso+1 end
+			if zzz_player_injuries.health.rightarm~=zzz_player_injuries.maxhp.rightarm 		then zzz_player_injuries.health.rightarm=zzz_player_injuries.health.rightarm+1 end
+			if zzz_player_injuries.health.leftarm~=zzz_player_injuries.maxhp.leftarm 		then zzz_player_injuries.health.leftarm=zzz_player_injuries.health.leftarm+1 end
+			if zzz_player_injuries.health.rightleg~=zzz_player_injuries.maxhp.rightleg		then zzz_player_injuries.health.rightleg=zzz_player_injuries.health.rightleg+1 end
+			if zzz_player_injuries.health.leftleg~=zzz_player_injuries.maxhp.leftleg 		then zzz_player_injuries.health.leftleg=zzz_player_injuries.health.leftleg+1 end
+			SaveNewLimbHealth()
+			timer_regen=time_global()
 		end
 	end
 end
@@ -183,7 +184,13 @@ function artihealing_calculations()
 		val = val + (artihealhelp.af_lucifer * af_lucifer_check.condition)
 	end
 	
-	modifiedregen = math.floor(75000 / val)
+	if val == 0 then
+		modifiedregen = 0
+	else
+		modifiedregen = math.floor(75000 / val)
+	end
+	
+	
 	printf('Limb regeneration: %s', modifiedregen)
 end
 
