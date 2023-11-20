@@ -3,7 +3,6 @@
 
 if perk_based_artefacts then end
 if zzz_player_injuries then end
-if zzzzzz_player_injuries_mp_new_attachments then end
 
 
 -- This is artifacts speeding up body part hp healing. The higher the value the faster the healing. Stackable.
@@ -11,7 +10,7 @@ local modifiedregen = 0
 artihealhelp = {}
 local math_floor = math.floor
 local shouldUpdate = false
-local sin_mult
+local sin_mult = 1
 local has_checked = false
 local af_lucifer_check = perk_based_artefacts.artefact_props.af_lucifer
 
@@ -64,9 +63,8 @@ local function get_current_weather()
 end
 
 function check_chain_status()
-	sin_mult = 1
 	if db.actor:character_community() == actor_greh then
-		artihealhelp.sin_mult = 4
+		sin_mult = 4
 	end
 	artihealhelp.af_chelust = artihealhelp.af_chelust * sin_mult
 end
@@ -131,16 +129,14 @@ function actor_on_update()
 	end
 
 	if (modifiedregen > 0) and (time_g-timer_regen>modifiedregen) then
-		if time_g-timer_regen>modifiedregen then
-			if zzz_player_injuries.health.head~=zzz_player_injuries.maxhp.head 				then zzz_player_injuries.health.head=zzz_player_injuries.health.head+1 end
-			if zzz_player_injuries.health.torso~=zzz_player_injuries.maxhp.torso 			then zzz_player_injuries.health.torso=zzz_player_injuries.health.torso+1 end
-			if zzz_player_injuries.health.rightarm~=zzz_player_injuries.maxhp.rightarm 		then zzz_player_injuries.health.rightarm=zzz_player_injuries.health.rightarm+1 end
-			if zzz_player_injuries.health.leftarm~=zzz_player_injuries.maxhp.leftarm 		then zzz_player_injuries.health.leftarm=zzz_player_injuries.health.leftarm+1 end
-			if zzz_player_injuries.health.rightleg~=zzz_player_injuries.maxhp.rightleg		then zzz_player_injuries.health.rightleg=zzz_player_injuries.health.rightleg+1 end
-			if zzz_player_injuries.health.leftleg~=zzz_player_injuries.maxhp.leftleg 		then zzz_player_injuries.health.leftleg=zzz_player_injuries.health.leftleg+1 end
-			SaveNewLimbHealth()
-			timer_regen=time_global()
-		end
+		if zzz_player_injuries.health.head~=zzz_player_injuries.maxhp.head 				then zzz_player_injuries.health.head=zzz_player_injuries.health.head+1 end
+		if zzz_player_injuries.health.torso~=zzz_player_injuries.maxhp.torso 			then zzz_player_injuries.health.torso=zzz_player_injuries.health.torso+1 end
+		if zzz_player_injuries.health.rightarm~=zzz_player_injuries.maxhp.rightarm 		then zzz_player_injuries.health.rightarm=zzz_player_injuries.health.rightarm+1 end
+		if zzz_player_injuries.health.leftarm~=zzz_player_injuries.maxhp.leftarm 		then zzz_player_injuries.health.leftarm=zzz_player_injuries.health.leftarm+1 end
+		if zzz_player_injuries.health.rightleg~=zzz_player_injuries.maxhp.rightleg		then zzz_player_injuries.health.rightleg=zzz_player_injuries.health.rightleg+1 end
+		if zzz_player_injuries.health.leftleg~=zzz_player_injuries.maxhp.leftleg 		then zzz_player_injuries.health.leftleg=zzz_player_injuries.health.leftleg+1 end
+		SaveNewLimbHealth()
+		timer_regen=time_global()
 	end
 end
 
@@ -186,6 +182,7 @@ function artihealing_calculations()
 	
 	if val == 0 then
 		modifiedregen = 0
+		timer_regen=time_global()
 	else
 		modifiedregen = math.floor(75000 / val)
 	end
