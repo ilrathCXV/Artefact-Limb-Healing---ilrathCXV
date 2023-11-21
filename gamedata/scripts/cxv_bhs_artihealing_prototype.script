@@ -120,8 +120,6 @@ function actor_on_update()
 			end
 		end
 
-		if not shouldUpdate then return end
-
 		if shouldUpdate then 
 			artihealing_calculations()
 			shouldUpdate = false
