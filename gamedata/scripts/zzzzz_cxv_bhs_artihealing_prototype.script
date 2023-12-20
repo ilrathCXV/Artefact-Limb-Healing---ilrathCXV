@@ -53,7 +53,6 @@ if is_pba_installed then
 	artihealhelp.af_sun						=0
 	artihealhelp.af_lucifer					=1
 end
-
 artihealhelp.hide_bloodsucker			=1
 
 local indoor_levels = {
@@ -89,77 +88,20 @@ local function SaveNewLimbHealth()
 	utils_obj.save_var(db.actor,"health.leftleg",zzz_player_injuries.health.leftleg)
 end
 
+local time_g = 0
+local timer_regen = time_global()
 local arti_status_check_timer = 0
-local arti_status_check_interval = 10	-- update every 1000ms/1sec
-
-local time_elapsed		 = 0
-local saved_time_elapsed = 0
-local time_diff			 = 0
-
-local time_g
-
--- Credit to PBA for in-world time condition updating
-local get_game_time 	 = game.get_game_time
-local get_start_time 	 = level.get_start_time
-local time_factor 	 	 = 6 -- Default time_factor
-local floor				 = math.floor
-local max 				 = math.max
-
-local function get_time_elapsed()
-	--trace(time_factor)
-	return math.floor(get_game_time():diffSec(get_start_time()) / time_factor * 10) * 0.1
-end
-
-function heal_limbs_check()
-	if (modifiedregen > 0) and (time_diff>modifiedregen) then
-		regen_amount = math.floor(time_diff/modifiedregen)	-- in case multiple limb-healing ticks are needed
-															-- will clamp with max value to ensure no jank happens
-		for i=1, regen_amount do
-			if zzz_player_injuries.health.head ~= zzz_player_injuries.maxhp.head then
-				zzz_player_injuries.health.head = zzz_player_injuries.health.head+1
-			end
-			if zzz_player_injuries.health.torso ~= zzz_player_injuries.maxhp.torso then
-				zzz_player_injuries.health.torso = zzz_player_injuries.health.torso+1
-			end
-			if zzz_player_injuries.health.rightarm ~= zzz_player_injuries.maxhp.rightarm then 
-				zzz_player_injuries.health.rightarm = zzz_player_injuries.health.rightarm+1
-			end
-			if zzz_player_injuries.health.leftarm ~= zzz_player_injuries.maxhp.leftarm then 
-				zzz_player_injuries.health.leftarm = zzz_player_injuries.health.leftarm+1
-			end
-			if zzz_player_injuries.health.rightleg ~= zzz_player_injuries.maxhp.rightleg then 
-				zzz_player_injuries.health.rightleg = zzz_player_injuries.health.rightleg+1
-			end
-			if zzz_player_injuries.health.leftleg ~= zzz_player_injuries.maxhp.leftleg then 
-				zzz_player_injuries.health.leftleg = zzz_player_injuries.health.leftleg+1
-			end
-			SaveNewLimbHealth()
-		end
-		
-		saved_time_elapsed=get_time_elapsed()
-		utils_obj.save_var(db.actor,"cached_artihealing_time",saved_time_elapsed)
-	end
-end
+local arti_status_check_interval = 3000	-- update every 3000ms/3sec
 
 function actor_on_update()
-	time_g = math_floor(time_global() * 0.01)	
-	
+
+	time_g = time_global()
 	if time_g < arti_status_check_timer then return end
 	
-	time_elapsed = get_time_elapsed()
-	if saved_time_elapsed == 0 then
-		get_first_elapsed_time()			-- to ensure players don't get a free limb heal on very first equip/level load 
-	end
-	
-	time_diff = time_elapsed - saved_time_elapsed
-	
-	if modifiedregen > 0 then
-		printf("[Artihealing] Current Time: %s | Curret Time b/w Heal: %s | Current Req. Regen Time: %s", time_elapsed, time_diff, modifiedregen)
-	end
-	
+	arti_status_check_timer = time_g + arti_status_check_interval
+
 	if is_pba_installed then
-	-- Signet Checking
-		
+		-- Signet Checking
 		local get_nearby_campfire = bind_campfire.get_nearby_campfire
 		local nearby_camp = get_nearby_campfire(5, true)	
 	
@@ -173,7 +115,7 @@ function actor_on_update()
 			shouldUpdate = true
 		end
 	
-	-- Sun Checking
+		-- Sun Checking
 		local actor_level = level.name()
 		local outside = (not indoor_levels[actor_level])
 		if outside then
@@ -190,15 +132,23 @@ function actor_on_update()
 				shouldUpdate = true
 			end
 		end
-	
-		if shouldUpdate then 
-			artihealing_calculations()
-			shouldUpdate = false
-		end
 	end
 
-	heal_limbs_check()
-	arti_status_check_timer = time_g + arti_status_check_interval
+	if shouldUpdate then 
+		artihealing_calculations()
+		shouldUpdate = false
+	end
+
+	if (modifiedregen > 0) and (time_g-timer_regen>modifiedregen) then
+		if zzz_player_injuries.health.head~=zzz_player_injuries.maxhp.head 				then zzz_player_injuries.health.head=zzz_player_injuries.health.head+1 end
+		if zzz_player_injuries.health.torso~=zzz_player_injuries.maxhp.torso 			then zzz_player_injuries.health.torso=zzz_player_injuries.health.torso+1 end
+		if zzz_player_injuries.health.rightarm~=zzz_player_injuries.maxhp.rightarm 		then zzz_player_injuries.health.rightarm=zzz_player_injuries.health.rightarm+1 end
+		if zzz_player_injuries.health.leftarm~=zzz_player_injuries.maxhp.leftarm 		then zzz_player_injuries.health.leftarm=zzz_player_injuries.health.leftarm+1 end
+		if zzz_player_injuries.health.rightleg~=zzz_player_injuries.maxhp.rightleg		then zzz_player_injuries.health.rightleg=zzz_player_injuries.health.rightleg+1 end
+		if zzz_player_injuries.health.leftleg~=zzz_player_injuries.maxhp.leftleg 		then zzz_player_injuries.health.leftleg=zzz_player_injuries.health.leftleg+1 end
+		SaveNewLimbHealth()
+		timer_regen=time_global()
+	end
 end
 
 
@@ -247,16 +197,14 @@ function artihealing_calculations()
 	
 	if val == 0 then
 		modifiedregen = 0
-		saved_time_elapsed=get_time_elapsed()
-		utils_obj.save_var(db.actor,"cached_artihealing_time",saved_time_elapsed)
+		timer_regen=time_global()
 	else
-		modifiedregen = math.floor(80 / val)
+		modifiedregen = math.floor(75000 / val)
 	end
 	
-	
-	-- 	printf("[Artihealing] Current Time: %s | Curret Time b/w Heal: %s | Current Req. Regen Time: %s", time_elapsed, time_diff, modifiedregen)
+	printf("[Artihealing] Curret Time b/w Heal: %s | Current Req. Regen Time: %s", (modifiedregen > 0) and time_g-timer_regen, modifiedregen)
+	-- printf('Limb regeneration: %s', modifiedregen)
 end
-
 
 function on_game_start()
 	RegisterScriptCallback("actor_on_first_update", check_chain_status)
