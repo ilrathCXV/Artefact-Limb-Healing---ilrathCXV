@@ -23,37 +23,41 @@ local sin_mult = 1
 local has_checked = false
 local af_lucifer_check = perk_based_artefacts.artefact_props.af_lucifer
 
+local base_healing_time = 75000 -- 1000 miliseconds = 1 sec
+
 -- Values are half of their Health Regen stated on their tooltip for balance for now
-artihealhelp.af_oasis_heart				=1.5
-artihealhelp.af_oasis_heart_af_iam		=1.5
-artihealhelp.af_oasis_heart_af_aac		=1.5
-artihealhelp.af_oasis_heart_af_aam		=1.5
-artihealhelp.af_fuzz_kolobok			=1.5
-artihealhelp.af_fuzz_kolobok_af_iam		=1.5
-artihealhelp.af_fuzz_kolobok_af_aac		=1.5
-artihealhelp.af_fuzz_kolobok_af_aam		=1.5
-artihealhelp.af_glass					=3
-artihealhelp.af_glass_af_iam			=3
-artihealhelp.af_glass_af_aac			=3
-artihealhelp.af_glass_af_aam			=3
-artihealhelp.af_soul					=1
-artihealhelp.af_soul_af_iam				=1
-artihealhelp.af_soul_af_aac				=1
-artihealhelp.af_soul_af_aam				=1
-artihealhelp.af_ah_r1					=1
-artihealhelp.af_ah_r2					=1
-artihealhelp.af_ah_r3					=1
-artihealhelp.af_ah_r4					=1
-artihealhelp.af_ah_r5					=1
+--	artihealhelp.af_oasis_heart				=1.5
+--	artihealhelp.af_oasis_heart_af_iam		=1.5
+--	artihealhelp.af_oasis_heart_af_aac		=1.5
+--	artihealhelp.af_oasis_heart_af_aam		=1.5
+--	artihealhelp.af_fuzz_kolobok			=1.5
+--	artihealhelp.af_fuzz_kolobok_af_iam		=1.5
+--	artihealhelp.af_fuzz_kolobok_af_aac		=1.5
+--	artihealhelp.af_fuzz_kolobok_af_aam		=1.5
+--	artihealhelp.af_glass					=3
+--	artihealhelp.af_glass_af_iam			=3
+--	artihealhelp.af_glass_af_aac			=3
+--	artihealhelp.af_glass_af_aam			=3
+--	artihealhelp.af_soul					=1
+--	artihealhelp.af_soul_af_iam				=1
+--	artihealhelp.af_soul_af_aac				=1
+--	artihealhelp.af_soul_af_aam				=1
+--	artihealhelp.af_ah_r1					=1
+--	artihealhelp.af_ah_r2					=1
+--	artihealhelp.af_ah_r3					=1
+--	artihealhelp.af_ah_r4					=1
+--	artihealhelp.af_ah_r5					=1
 
 if is_pba_installed then
 	artihealhelp.af_signet					=0
 	artihealhelp.af_ear						=0
+	artihealhelp.af_peas					=0
 	artihealhelp.af_chelust					=0.25
 	artihealhelp.af_sun						=0
 	artihealhelp.af_lucifer					=1
 end
-artihealhelp.hide_bloodsucker			=1
+
+-- artihealhelp.hide_bloodsucker			=1
 
 local indoor_levels = {
 	jupiter_underground 	= true,
@@ -91,7 +95,8 @@ end
 local time_g = 0
 local timer_regen = time_global()
 local arti_status_check_timer = 0
-local arti_status_check_interval = 3000	-- update every 3000ms/3sec
+local arti_status_check_interval = 5000	-- update every 5000ms/5sec
+local near_campfire = false
 
 function actor_on_update()
 
@@ -99,32 +104,35 @@ function actor_on_update()
 	if time_g < arti_status_check_timer then return end
 	
 	arti_status_check_timer = time_g + arti_status_check_interval
+	
+	local get_nearby_campfire = bind_campfire.get_nearby_campfire
+	local nearby_camp = get_nearby_campfire(5, true)
+	near_campfire = nearby_camp and nearby_camp:is_on()
 
 	if is_pba_installed then
-		-- Signet Checking
-		local get_nearby_campfire = bind_campfire.get_nearby_campfire
-		local nearby_camp = get_nearby_campfire(5, true)	
-	
-		if nearby_camp and nearby_camp:is_on() and artihealhelp.af_signet == 0.8 then
+		-- Signet Checking	
+		if near_campfire and artihealhelp.af_signet == 0.4 then
 			-- do nothing
-		elseif nearby_camp and nearby_camp:is_on() and artihealhelp.af_signet == 0 then
-			artihealhelp.af_signet = 0.8
+		elseif near_campfire and artihealhelp.af_signet == 0 then
+			artihealhelp.af_signet = 0.4
 			shouldUpdate = true
 		elseif artihealhelp.af_signet == 0.8 then
 			artihealhelp.af_signet = 0
 			shouldUpdate = true
 		end
+		
+		-- Sun and Moon Vars
+		local hours = level.get_time_hours()
+		local isDayTime = (hours <= 21) and (hours >= 5)
 	
 		-- Sun Checking
 		local actor_level = level.name()
 		local outside = (not indoor_levels[actor_level])
 		if outside then
-			local hours = level.get_time_hours()
-			local daytime = (hours <= 21) and (hours >= 5)
 			local clearWeather = (get_current_weather() == "clear") or 0
-			if daytime and clearWeather and artihealhelp.af_sun == 0.58 then
+			if isDayTime and clearWeather and artihealhelp.af_sun == 0.58 then
 				-- do nothing
-			elseif daytime and clearWeather and artihealhelp.af_sun == 0 then
+			elseif isDayTime and clearWeather and artihealhelp.af_sun == 0 then
 				artihealhelp.af_sun	= 0.58
 				shouldUpdate = true
 			elseif artihealhelp.af_sun == 0.58 then
@@ -132,6 +140,15 @@ function actor_on_update()
 				shouldUpdate = true
 			end
 		end
+		
+		-- Moon Checking
+		if not isDayTime and artihealhelp.af_peas ~= 0.35 then
+			artihealhelp.af_peas = 0.35
+		elseif isDayTime and artihealhelp.af_peas == 0.35 then
+			artihealhelp.af_peas = 0
+		end
+		
+		
 	end
 
 	if shouldUpdate then 
@@ -162,7 +179,7 @@ function artihealing_calculations()
             local slotitemname = obj:section()
 			if artihealhelp[slotitemname] then
 			
-			if is_pba_installed then
+				if is_pba_installed then
 				-- Heart Checking
 					if slotitemname == af_ear then
 						local actor_health = round_100(actor.health)
@@ -173,19 +190,25 @@ function artihealing_calculations()
 							artihealhelp.af_ear = 0
 						end
 					end
-	
+		
 				-- Lucifer Equip Checking
 					if slotitemname == af_lucifer and not has_checked then
 						artihealhelp.af_lucifer = 3
 						has_checked = true
 					end	
-	
+		
 					slotCondition = obj:condition()
 					val = val + round_idp((artihealhelp[slotitemname] * slotCondition), 4)
 				end
+			else
+				local healing_stat = ini_sys:r_float_ex(slotitemname, "health_restore_speed") or 0
+				printf("Healing amount for %s = %s", slotitemname, healing_stat)
+				if healing_stat > 0 then
+					slotCondition = obj:condition()
+					val = val + round_idp(((healing_stat * 1000) * slotCondition), 4)
+				end
 			end
-		end
-	)
+		end)
 
 	if is_pba_installed then
 		-- if player has Lucifer but not equipped...
@@ -199,7 +222,8 @@ function artihealing_calculations()
 		modifiedregen = 0
 		timer_regen=time_global()
 	else
-		modifiedregen = math.floor(75000 / val)
+		-- Added doubling the regen rate/cutting time needed for regen tick in half when near a campfire
+		modifiedregen = math.floor(base_healing_time / val) * (near_campfire and 0.5 or 1)
 	end
 	
 	printf("[Artihealing] Curret Time b/w Heal: %s | Current Req. Regen Time: %s", (modifiedregen > 0) and time_g-timer_regen, modifiedregen)
